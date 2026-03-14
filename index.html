@@ -18,78 +18,47 @@
         #print-area { display: none; }
 
         .a4-page {
-            width: 210mm;
-            height: 297mm;
-            margin: 0 auto;
-            background: white;
-            display: flex;
-            page-break-after: always;
-            position: relative;
-            overflow: hidden;
-            box-sizing: border-box;
+            width: 210mm; height: 297mm;
+            margin: 0 auto; background: white;
+            display: flex; page-break-after: always;
+            position: relative; overflow: hidden; box-sizing: border-box;
         }
 
         .bingo-card {
-            width: 105mm;
-            height: 297mm;
-            padding: 4mm 8mm; 
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            border-right: 1px dashed #ddd; 
-            position: relative;
+            width: 105mm; height: 297mm;
+            padding: 4mm 8mm; box-sizing: border-box;
+            display: flex; flex-direction: column; align-items: center;
+            border-right: 1px dashed #ddd; position: relative;
         }
         .a4-page .bingo-card:last-child { border-right: none; }
 
         .title-header {
-            width: 80mm;
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            margin-bottom: 1mm;
-            height: 18mm;
+            width: 80mm; display: grid; grid-template-columns: repeat(5, 1fr);
+            margin-bottom: 1mm; height: 18mm;
         }
 
         .letter-box { display: flex; align-items: center; justify-content: center; }
         .letter-img { max-width: 95%; max-height: 95%; object-fit: contain; }
 
         .grid-block {
-            width: 80mm;
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            border-top: 1px solid #c71816;
-            border-left: 1px solid #c71816;
-            margin-bottom: 7mm; 
-            background: white;
-            position: relative;
-            box-sizing: border-box;
+            width: 80mm; display: grid; grid-template-columns: repeat(5, 1fr);
+            border-top: 1px solid #c71816; border-left: 1px solid #c71816;
+            margin-bottom: 7mm; background: white; position: relative; box-sizing: border-box;
         }
 
         .cell {
-            width: 16mm;
-            height: 16mm;
-            border-right: 1px solid #c71816;
-            border-bottom: 1px solid #c71816;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 18pt;
-            color: black;
-            box-sizing: border-box;
+            width: 16mm; height: 16mm;
+            border-right: 1px solid #c71816; border-bottom: 1px solid #c71816;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 18pt; color: black; box-sizing: border-box;
         }
 
         .cell.free-space { font-size: 7pt; color: #c71816; font-weight: 900; text-align: center; line-height: 1; }
         .free-img { width: 100%; height: 100%; object-fit: cover; }
 
         .dog-overlay {
-            position: absolute;
-            bottom: -18mm; 
-            left: 65mm; 
-            width: 22mm; 
-            z-index: 100;
-            pointer-events: none;
-            opacity: 1 !important;
+            position: absolute; bottom: -18mm; left: 65mm; width: 22mm; 
+            z-index: 100; pointer-events: none; opacity: 1 !important;
         }
 
         .card-id { font-size: 7pt; color: #bbb; margin-top: auto; padding-bottom: 2mm; }
@@ -126,9 +95,11 @@
     };
 
     function shuffle(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[array[j]]] = [array[array[j]], array[i]];
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex != 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
         }
         return array;
     }
@@ -168,13 +139,11 @@
                 const card = document.createElement('div');
                 card.className = 'bingo-card';
 
-                // --- MASTER POOL GENERATION ---
-                // We create a pool of all 15 numbers for each column and shuffle them.
-                // This ensures each number (1-75) appears exactly ONCE across the 3 grids.
+                // MASTER POOLS: Shuffled 1-15, 16-30, etc.
                 let masterPools = columnRanges.map(range => {
                     let nums = [];
                     for (let n = range.min; n <= range.max; n++) nums.push(n);
-                    return shuffle(nums); 
+                    return shuffle(nums);
                 });
 
                 const titleHeader = document.createElement('div');
@@ -187,22 +156,26 @@
                 });
                 card.appendChild(titleHeader);
 
+                // Tracking how many numbers we've pulled from each pool
+                let poolCounters = [0, 0, 0, 0, 0];
+
                 for (let g = 0; g < 3; g++) {
                     const grid = document.createElement('div');
                     grid.className = 'grid-block';
                     
-                    // Slice 5 unique numbers for this specific grid from the master pool
-                    let gridColumns = masterPools.map(pool => pool.slice(g * 5, (g + 1) * 5));
-
                     for (let row = 0; row < 5; row++) {
                         for (let col = 0; col < 5; col++) {
                             const cell = document.createElement('div');
                             cell.className = 'cell';
+                            
                             if (row === 2 && col === 2) {
                                 cell.classList.add('free-space');
                                 cell.innerHTML = uploadedFreeImg ? `<img src="${uploadedFreeImg}" class="free-img">` : fText;
                             } else {
-                                cell.innerText = gridColumns[col][row];
+                                // Pull the next available number from the master pool for this column
+                                let val = masterPools[col][poolCounters[col]];
+                                cell.innerText = val;
+                                poolCounters[col]++;
                             }
                             grid.appendChild(cell);
                         }
