@@ -125,6 +125,14 @@
         reader.readAsDataURL(e.target.files[0]);
     };
 
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[array[j]]] = [array[array[j]], array[i]];
+        }
+        return array;
+    }
+
     function generateCards() {
         const area = document.getElementById('print-area');
         const qty = parseInt(document.getElementById('cardQty').value);
@@ -142,7 +150,7 @@
         area.innerHTML = '';
         area.style.display = 'block';
 
-        const ranges = [
+        const columnRanges = [
             { min: 1,  max: 15 }, // B
             { min: 16, max: 30 }, // I
             { min: 31, max: 45 }, // N
@@ -160,6 +168,15 @@
                 const card = document.createElement('div');
                 card.className = 'bingo-card';
 
+                // --- MASTER POOL GENERATION ---
+                // We create a pool of all 15 numbers for each column and shuffle them.
+                // This ensures each number (1-75) appears exactly ONCE across the 3 grids.
+                let masterPools = columnRanges.map(range => {
+                    let nums = [];
+                    for (let n = range.min; n <= range.max; n++) nums.push(n);
+                    return shuffle(nums); 
+                });
+
                 const titleHeader = document.createElement('div');
                 titleHeader.className = 'title-header';
                 letters.forEach(url => {
@@ -174,16 +191,9 @@
                     const grid = document.createElement('div');
                     grid.className = 'grid-block';
                     
-                    // Generate 5 unique numbers for each column range
-                    let columns = [[], [], [], [], []];
-                    ranges.forEach((range, colIdx) => {
-                        let possible = [];
-                        for (let n = range.min; n <= range.max; n++) possible.push(n);
-                        possible.sort(() => Math.random() - 0.5);
-                        columns[colIdx] = possible.slice(0, 5);
-                    });
+                    // Slice 5 unique numbers for this specific grid from the master pool
+                    let gridColumns = masterPools.map(pool => pool.slice(g * 5, (g + 1) * 5));
 
-                    // Construct grid row by row
                     for (let row = 0; row < 5; row++) {
                         for (let col = 0; col < 5; col++) {
                             const cell = document.createElement('div');
@@ -192,7 +202,7 @@
                                 cell.classList.add('free-space');
                                 cell.innerHTML = uploadedFreeImg ? `<img src="${uploadedFreeImg}" class="free-img">` : fText;
                             } else {
-                                cell.innerText = columns[col][row];
+                                cell.innerText = gridColumns[col][row];
                             }
                             grid.appendChild(cell);
                         }
