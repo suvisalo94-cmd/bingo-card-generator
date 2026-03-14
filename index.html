@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Bingo - Print-Safe Edition</title>
+    <style>
+        /* --- UI DASHBOARD --- */
+        body { font-family: sans-serif; background: #f0f0f0; margin: 0; padding: 20px; text-align: center; }
+        .no-print { 
+            background: white; padding: 20px; border-radius: 8px; border-top: 5px solid #c71816;
+            display: inline-block; text-align: left; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .input-group { margin: 10px 0; display: flex; justify-content: space-between; gap: 20px; align-items: center; }
+        button { padding: 10px; background: #c71816; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
+
+        /* --- THE PRINT AREA --- */
+        #print-area { display: none; }
+
+        .a4-page {
+            width: 210mm;
+            height: 297mm;
+            margin: 0 auto;
+            background: white;
+            display: flex;
+            page-break-after: always;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .bingo-card {
+            width: 105mm;
+            height: 297mm;
+            padding: 4mm 8mm; 
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-right: 1px dashed #ddd; 
+            position: relative;
+        }
+        .a4-page .bingo-card:last-child { border-right: none; }
+
+        .title-header {
+            width: 80mm;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            margin-bottom: 1mm;
+            height: 18mm;
+        }
+
+        .letter-box { display: flex; align-items: center; justify-content: center; }
+        .letter-img { max-width: 95%; max-height: 95%; object-fit: contain; }
+
+        .grid-block {
+            width: 80mm;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            border-top: 1px solid #c71816;
+            border-left: 1px solid #c71816;
+            margin-bottom: 7mm; 
+            background: white;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .cell {
+            width: 16mm;
+            height: 16mm;
+            border-right: 1px solid #c71816;
+            border-bottom: 1px solid #c71816;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18pt;
+            color: black;
+            box-sizing: border-box;
+        }
+
+        .cell.free-space { font-size: 7pt; color: #c71816; font-weight: 900; text-align: center; line-height: 1; }
+        .free-img { width: 100%; height: 100%; object-fit: cover; }
+
+        .dog-overlay {
+            position: absolute;
+            bottom: -18mm; 
+            left: 65mm; 
+            width: 22mm; 
+            z-index: 100;
+            pointer-events: none;
+            opacity: 1 !important;
+        }
+
+        .card-id { font-size: 7pt; color: #bbb; margin-top: auto; padding-bottom: 2mm; }
+
+        @media print {
+            @page { size: A4 portrait; margin: 0; }
+            .no-print { display: none !important; }
+            body { background: white; padding: 0; margin: 0; }
+            #print-area { display: block !important; }
+            .a4-page { border: none; margin: 0; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="no-print">
+    <h3>Bingo Designer</h3>
+    <div class="input-group"><span>Cards (Total):</span><input id="cardQty" type="number" value="10" step="2"></div>
+    <div class="input-group"><span>Free Text:</span><input id="freeTxt" type="text" value="FREE"></div>
+    <div class="input-group"><span>Free Photo:</span><input id="freeImgInput" type="file" accept="image/*"></div>
+    <button onclick="generateCards()">1. Generate Unique Cards</button>
+    <button onclick="window.print()" style="background:#333; margin-top:10px;">2. Print / Save PDF</button>
+</div>
+
+<div id="print-area"></div>
+
+<script>
+    let uploadedFreeImg = null;
+    document.getElementById('freeImgInput').onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => uploadedFreeImg = ev.target.result;
+        reader.readAsDataURL(e.target.files[0]);
+    };
+
+    function generateCards() {
+        const area = document.getElementById('print-area');
+        const qty = parseInt(document.getElementById('cardQty').value);
+        const fText = document.getElementById('freeTxt').value;
+        
+        const letters = [
+            "https://conqueringsocialmedia.wordpress.com/wp-content/uploads/2026/03/b.png",
+            "https://conqueringsocialmedia.wordpress.com/wp-content/uploads/2026/03/i.png",
+            "https://conqueringsocialmedia.wordpress.com/wp-content/uploads/2026/03/n.png",
+            "https://conqueringsocialmedia.wordpress.com/wp-content/uploads/2026/03/g.png",
+            "https://conqueringsocialmedia.wordpress.com/wp-content/uploads/2026/03/o.png"
+        ];
+        const dogUrl = "https://conqueringsocialmedia.wordpress.com/wp-content/uploads/2026/03/screenshot-2026-03-10-152540-edited.png";
+
+        area.innerHTML = '';
+        area.style.display = 'block';
+
+        const ranges = [
+            { min: 1,  max: 15 }, // B
+            { min: 16, max: 30 }, // I
+            { min: 31, max: 45 }, // N
+            { min: 46, max: 60 }, // G
+            { min: 61, max: 75 }  // O
+        ];
+
+        for (let i = 0; i < qty; i += 2) {
+            const page = document.createElement('div');
+            page.className = 'a4-page';
+
+            for (let c = 0; c < 2; c++) {
+                if (i + c >= qty) break;
+                
+                const card = document.createElement('div');
+                card.className = 'bingo-card';
+
+                const titleHeader = document.createElement('div');
+                titleHeader.className = 'title-header';
+                letters.forEach(url => {
+                    const box = document.createElement('div');
+                    box.className = 'letter-box';
+                    box.innerHTML = `<img src="${url}" class="letter-img">`;
+                    titleHeader.appendChild(box);
+                });
+                card.appendChild(titleHeader);
+
+                for (let g = 0; g < 3; g++) {
+                    const grid = document.createElement('div');
+                    grid.className = 'grid-block';
+                    
+                    // Generate 5 unique numbers for each column range
+                    let columns = [[], [], [], [], []];
+                    ranges.forEach((range, colIdx) => {
+                        let possible = [];
+                        for (let n = range.min; n <= range.max; n++) possible.push(n);
+                        possible.sort(() => Math.random() - 0.5);
+                        columns[colIdx] = possible.slice(0, 5);
+                    });
+
+                    // Construct grid row by row
+                    for (let row = 0; row < 5; row++) {
+                        for (let col = 0; col < 5; col++) {
+                            const cell = document.createElement('div');
+                            cell.className = 'cell';
+                            if (row === 2 && col === 2) {
+                                cell.classList.add('free-space');
+                                cell.innerHTML = uploadedFreeImg ? `<img src="${uploadedFreeImg}" class="free-img">` : fText;
+                            } else {
+                                cell.innerText = columns[col][row];
+                            }
+                            grid.appendChild(cell);
+                        }
+                    }
+
+                    if (g === 2) {
+                        const dogImg = document.createElement('img');
+                        dogImg.src = dogUrl;
+                        dogImg.className = 'dog-overlay';
+                        grid.appendChild(dogImg);
+                    }
+                    card.appendChild(grid);
+                }
+                
+                const idDiv = document.createElement('div');
+                idDiv.className = 'card-id';
+                idDiv.innerText = `BINGO UNIQUE SET ID #${i+c+1}`;
+                card.appendChild(idDiv);
+
+                page.appendChild(card);
+            }
+            area.appendChild(page);
+        }
+    }
+</script>
+</body>
+</html>
